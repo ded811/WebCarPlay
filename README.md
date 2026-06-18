@@ -1,12 +1,12 @@
 # WebCarPlay
 
-A pure browser-based Apple CarPlay client. No Node.js, no build tools, no dependencies — just a single HTML file you open in Chrome. It uses [WebUSB](https://developer.mozilla.org/en-US/docs/Web/API/WebUSB_API) to talk to a USB CarPlay dongle and [WebCodecs](https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API) to decode the H.264 video stream.
+A pure browser-based Apple CarPlay client. No Node.js, no build tools, no dependencies, just a single HTML file you open in Chrome. It uses [WebUSB](https://developer.mozilla.org/en-US/docs/Web/API/WebUSB_API) to talk to a USB CarPlay dongle and [WebCodecs](https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API) to decode the H.264 video stream.
 
 ---
 
 ## What adapter do you need?
 
-You need a **USB CarPlay relay dongle** — the kind that sits between your iPhone and your PC. These are sometimes called "CarPlay box" or "AutoKit" dongles. Common examples:
+You need a **USB CarPlay relay dongle**, the kind that sits between your iPhone and your PC. These are sometimes called "CarPlay box" or "AutoKit" dongles. Common examples:
 
 - Carlinkit CPC200-CCPM
 - Carlinkit CPC200-CCPA
@@ -14,10 +14,10 @@ You need a **USB CarPlay relay dongle** — the kind that sits between your iPho
 
 These dongles support two connection modes, and this client handles both:
 
-| Mode | Phone connection | Dongle → PC |
+| Mode | Phone connection | Dongle to PC |
 | --- | --- | --- |
-| **Wired** | Phone USB cable → dongle | USB |
-| **Wireless** | Phone WiFi → dongle's hotspot | USB |
+| **Wired** | Phone USB cable to dongle | USB |
+| **Wireless** | Phone WiFi to dongle's hotspot | USB |
 
 > **Not compatible with** wireless-to-car adapters (the kind that adds wireless CarPlay to a factory wired-only head unit). Those use a different protocol entirely.
 
@@ -26,26 +26,18 @@ These dongles support two connection modes, and this client handles both:
 ## Requirements
 
 - **Chrome 94+** (WebUSB + WebCodecs). Other Chromium-based browsers may work.
-- **Linux / macOS**: just open `carplay.html` directly in Chrome — no server needed, no driver setup.
-- **Windows**: requires a local server (`python3 -m http.server 8080`) and driver setup — see the [Windows section](#windows) below.
+- **Linux / macOS / Windows**: just open `carplay.html` directly in Chrome, no server needed.
+- **Windows only**: requires a driver, see the [Windows section](#windows) below.
 
 ---
 
 ## Getting started
 
-1. Open `carplay.html` directly in Chrome. On Linux and macOS this is all you need — just double-click the file or drag it into Chrome.
-
-   On Windows, open it via a local server instead:
-
-   ```bash
-   python3 -m http.server 8080
-   ```
-
-   Then navigate to `http://localhost:8080/carplay.html`.
+1. Open `carplay.html` directly in Chrome. Just double-click the file or drag it into Chrome.
 
 2. Plug in your CarPlay dongle.
 
-3. Click **Connect CarPlay**. Chrome will show a device picker — select the dongle. After the first time, the dongle is remembered and will auto-connect on subsequent visits.
+3. Click **Connect CarPlay**. Chrome will show a device picker, select the dongle. After the first time, the dongle is remembered and will auto-connect on subsequent visits.
 
 4. Connect your iPhone:
    - **Wired**: plug your iPhone into the dongle via USB.
@@ -55,7 +47,7 @@ These dongles support two connection modes, and this client handles both:
 
 ## Configuration
 
-Open `carplay.html` in a text editor. Near the top of the `<script>` block you will find the `CONFIG` object. Edit it to suit your setup — no other code needs to change.
+Open `carplay.html` in a text editor. Near the top of the `<script>` block you will find the `CONFIG` object. Edit it to suit your setup, no other code needs to change.
 
 ```javascript
 const CONFIG = {
@@ -74,14 +66,16 @@ const CONFIG = {
   // Set to false to hide it permanently (see "Menu bar" section below).
   showMenuBar: true,
 
-  // Frames per second sent to the dongle (10–30 are sensible values).
-  fps: 20,
+  // Frames per second sent to the dongle.
+  // 30 is recommended, smooth without wasting CPU. Most dongles won't go above 30.
+  // Drop to 20 on slower hardware, go up to 60 only if your dongle supports it.
+  fps: 30,
 
   // CarPlay dark/night mode (affects iPhone UI chrome, not the video itself).
   nightMode: false,
 
-  // true  = left-hand drive (steering wheel on left — US, EU, etc.)
-  // false = right-hand drive (steering wheel on right — UK, AU, JP, etc.)
+  // true  = left-hand drive (steering wheel on left, US/EU/etc.)
+  // false = right-hand drive (steering wheel on right, UK/AU/JP/etc.)
   leftHandDrive: true,
 
   // Wi-Fi band for wireless CarPlay pairing.
@@ -109,7 +103,7 @@ The bottom bar has Home, Siri, and media controls.
 
 **To restore it:** click that pull-tab, or double-click anywhere on the CarPlay video.
 
-**To hide it permanently** (e.g. for a dedicated car display where you always use CarPlay's own UI): set `showMenuBar: false` in CONFIG. The bar will never appear and no pull-tab will be shown. You can still interact with CarPlay fully through touch — just double-click the screen if you ever need the bar back temporarily.
+**To hide it permanently** (e.g. for a dedicated car display where you always use CarPlay's own UI): set `showMenuBar: false` in CONFIG. The bar will never appear and no pull-tab will be shown. You can still interact with CarPlay fully through touch, just double-click the screen if you ever need the bar back temporarily.
 
 ---
 
@@ -118,14 +112,14 @@ The bottom bar has Home, Siri, and media controls.
 Chrome's WebUSB on Windows requires the **WinUSB** driver to be installed for your dongle. Use [Zadig](https://zadig.akeo.ie/):
 
 1. Plug in the dongle and open Zadig
-2. **Options → List All Devices**
+2. **Options -> List All Devices**
 3. Find the Carlinkit dongle (VID `1314`, PID `1520` or `1521`)
-4. Select **WinUSB** in the driver dropdown — not libusb-win32 or LibusbK
+4. Select **WinUSB** in the driver dropdown, not libusb-win32 or LibusbK
 5. Click **Install Driver**
 
 After that, Chrome's device picker should show the dongle.
 
-**Known issue:** some dongles boot-cycle rapidly while waiting for a CarPlay host, and the WinUSB driver stack can't finish loading before the device resets. This shows up as a persistent "USB device not recognised" error even after Zadig succeeds. There is no known fix for this — if you hit it, use Linux or macOS instead.
+**Known issue:** some dongles boot-cycle rapidly while waiting for a CarPlay host, and the WinUSB driver stack can't finish loading before the device resets. This shows up as a persistent "USB device not recognised" error even after Zadig succeeds. There is no known fix for this, if you hit it, use Linux or macOS instead.
 
 ---
 
@@ -137,7 +131,7 @@ If your dongle is not auto-detected, find its USB Vendor ID and Product ID (Devi
 const KNOWN_DEVICES = [
   { vendorId: 0x1314, productId: 0x1520 },
   { vendorId: 0x1314, productId: 0x1521 },
-  { vendorId: 0xXXXX, productId: 0xXXXX }, // ← your dongle
+  { vendorId: 0xXXXX, productId: 0xXXXX }, // your dongle
 ];
 ```
 
