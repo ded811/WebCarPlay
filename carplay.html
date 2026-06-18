@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebCarPlay</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    /* ── Screen area ── */
+    #screen-wrap {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+    }
+    #screen {
+      display: block;
+      touch-action: none;
+      cursor: crosshair;
+    }
+    #screen.fill     { width: 100%; height: 100%; }
+    #screen.letterbox { max-width: 100%; max-height: 100%; aspect-ratio: auto; }
+
+    /* ── Bottom bar ── */
+    #ui {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      padding: 10px 20px 14px;
+      background: rgba(10,10,14,0.97);
+      border-top: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px 16px 0 0;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      z-index: 10;
+    }
+    #ui.hidden { display: none; }
+    .ui-left, .ui-right {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ui-right { justify-content: flex-end; gap: 10px; }
+    .ui-center { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+
+    /* ── Car buttons ── */
+    .car-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      padding: 7px 14px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      color: rgba(255,255,255,0.85);
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      transition: background 0.12s, border-color 0.12s, transform 0.08s;
+      white-space: nowrap;
+      min-width: 48px;
+    }
+    .car-btn svg { flex-shrink: 0; }
+    .car-btn:hover:not(:disabled)  { background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.22); }
+    .car-btn:active:not(:disabled) { transform: scale(0.94); }
+    .car-btn:disabled              { opacity: 0.28; cursor: default; }
+    .car-btn-home {
+      background: rgba(59,130,246,0.16);
+      border-color: rgba(59,130,246,0.3);
+      color: #93c5fd;
+      padding: 7px 20px;
+    }
+    .car-btn-home:hover:not(:disabled) { background: rgba(59,130,246,0.28); border-color: rgba(59,130,246,0.55); }
+    .car-btn-icon { padding: 8px 12px; min-width: 40px; }
+    .car-btn-hide { padding: 6px 10px; min-width: 0; background: transparent; border-color: rgba(255,255,255,0.08); }
+    #status { font-size: 11px; color: rgba(255,255,255,0.38); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Overlay ── */
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.9);
+      z-index: 5;
+      gap: 28px;
+    }
+    #overlay.hidden { display: none; }
+    #overlay svg.car-icon { color: rgba(255,255,255,0.45); }
+    #connectBigBtn {
+      font-size: 20px;
+      font-weight: 600;
+      padding: 18px 52px;
+      border: 1.5px solid rgba(59,130,246,0.45);
+      border-radius: 50px;
+      background: rgba(59,130,246,0.12);
+      color: #93c5fd;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+    #connectBigBtn:hover  { background: rgba(59,130,246,0.24); border-color: rgba(59,130,246,0.7); }
+    #connectBigBtn:active { transform: scale(0.97); }
+    #overlay-hint { font-size: 13px; color: rgba(255,255,255,0.32); }
+    #overlay-spinner { display: none; flex-direction: column; align-items: center; gap: 18px; }
+    #overlay-spinner.visible { display: flex; }
+    #overlay-spinner p { font-size: 13px; color: rgba(255,255,255,0.45); }
+
+    /* ── Bar peek-tab (shown when bar is hidden) ── */
+    #bar-tab {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 52px;
+      height: 20px;
+      background: rgba(10,10,14,0.85);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-bottom: none;
+      border-radius: 10px 10px 0 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 11;
+      color: rgba(255,255,255,0.45);
+      transition: background 0.12s, color 0.12s;
+    }
+    #bar-tab.visible { display: flex; }
+    #bar-tab:hover { background: rgba(30,30,40,0.95); color: rgba(255,255,255,0.9); }
+
+    /* ── Button size variants ── */
+    #ui[data-size="small"] .car-btn       { padding: 4px 10px; font-size: 9px; min-width: 36px; }
+    #ui[data-size="small"] .car-btn-home  { padding: 4px 14px; }
+    #ui[data-size="small"] .car-btn-icon  { padding: 5px 8px; min-width: 30px; }
+    #ui[data-size="small"] .car-btn svg   { width: 14px; height: 14px; }
+    #ui[data-size="large"] .car-btn       { padding: 10px 20px; font-size: 12px; min-width: 60px; }
+    #ui[data-size="large"] .car-btn-home  { padding: 10px 28px; }
+    #ui[data-size="large"] .car-btn-icon  { padding: 12px 18px; }
+    #ui[data-size="large"] .car-btn svg   { width: 26px; height: 26px; }
+  </style>
+</head>
+<body>
+  <div id="screen-wrap">
+    <canvas id="screen" width="800" height="640"></canvas>
+    <div id="overlay">
+      <svg class="car-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+          width="72" height="72" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="7" y="2" width="10" height="20" rx="2.5"/>
+        <circle cx="12" cy="17.5" r="0.8" fill="currentColor"/>
+      </svg>
+      <button id="connectBigBtn">Connect CarPlay</button>
+      <span id="overlay-hint">Plug in your iPhone to get started</span>
+      <div id="overlay-spinner">
+        <svg viewBox="0 0 50 50" width="56" height="56">
+          <circle cx="25" cy="25" r="20" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="4"
+            stroke-dasharray="90 60" stroke-linecap="round">
+            <animateTransform attributeName="transform" type="rotate"
+              from="0 25 25" to="360 25 25" dur="0.9s" repeatCount="indefinite"/>
+          </circle>
+        </svg>
+        <p id="spinnerStatus">Connecting…</p>
+      </div>
+    </div>
+  </div>
+  <div id="ui">
+    <div class="ui-left">
+      <button id="homeBtn" class="car-btn car-btn-home" disabled>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span>Home</span>
+      </button>
+      <button id="siriBtn" class="car-btn" disabled>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+        <span>Siri</span>
+      </button>
+    </div>
+    <div class="ui-center">
+      <button id="prevBtn" class="car-btn car-btn-icon" disabled>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+      </button>
+      <button id="playBtn" class="car-btn car-btn-icon" disabled>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button id="nextBtn" class="car-btn car-btn-icon" disabled>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+      </button>
+    </div>
+    <div class="ui-right">
+      <span id="status">Disconnected</span>
+      <button id="hideBtn" class="car-btn car-btn-hide" title="Hide bar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div id="bar-tab" title="Show bar">
+    <svg width="14" height="8" viewBox="0 0 14 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="1 7 7 1 13 7"/>
+    </svg>
+  </div>
+
+<script>
+'use strict';
+
+// ─── Configuration ────────────────────────────────────────────────────────────
+// Edit these values to customise behaviour without touching the rest of the code.
+const CONFIG = {
+  // false = auto-fit to the browser window; true = use width/height below
+  customResolution: false,
+  width:  1280,
+  height:  720,
+
+  // Only relevant when customResolution is true.
+  // false = letterbox (black bars); true = stretch to fill the window
+  stretchToFill: false,
+
+  // Show the bottom bar when the page loads
+  showMenuBar: true,
+
+  // Frames per second sent to the dongle
+  fps: 60,
+
+  // CarPlay dark/night mode (affects iPhone UI chrome)
+  nightMode: false,
+
+  // true = left-hand drive (US / EU)  false = right-hand drive (UK / AU / JP)
+  leftHandDrive: true,
+
+  // Wi-Fi band used when pairing wirelessly: '5ghz' or '2.4ghz'
+  wifiType: '5ghz',
+
+  // Disable to silence all audio (useful for debugging)
+  audioEnabled: true,
+
+  // Seconds to wait for a phone before triggering Wi-Fi pair
+  pairTimeoutSecs: 15,
+
+  // Bottom bar button size: 'small', 'medium', or 'large'
+  buttonSize: 'medium',
+};
+
+// ─── Protocol constants ───────────────────────────────────────────────────────
+const MAGIC       = 0x55aa55aa;
+const HEADER_SIZE = 16;
+
+const MsgType = Object.freeze({
+  Open:               0x01,
+  Plugged:            0x02,
+  Phase:              0x03,
+  Unplugged:          0x04,
+  Touch:              0x05,
+  VideoData:          0x06,
+  AudioData:          0x07,
+  Command:            0x08,
+  LogoType:           0x09,
+  DisconnectPhone:    0x0f,
+  CloseDongle:        0x15,
+  BluetoothAddress:   0x0a,
+  BluetoothPIN:       0x0c,
+  BluetoothDeviceName:0x0d,
+  WifiDeviceName:     0x0e,
+  BluetoothPairedList:0x12,
+  ManufacturerInfo:   0x14,
+  MultiTouch:         0x17,
+  HiCarLink:          0x18,
+  BoxSettings:        0x19,
+  MediaData:          0x2a,
+  SendFile:           0x99,
+  HeartBeat:          0xaa,
+  SoftwareVersion:    0xcc,
+});
+
+const Cmd = Object.freeze({
+  siri:            5,
+  mic:             7,
+  frame:           12,
+  audioTransferOff:23,
+  wifi5g:          25,
+  home:            200,
+  play:            201,
+  pause:           202,
+  playOrPause:     203,
+  next:            204,
+  prev:            205,
+  wifiEnable:      1000,
+  wifiConnect:     1002,
+  wifiPair:        1012,
+});
+
+const FileAddr = Object.freeze({
+  DPI:        '/tmp/screen_dpi',
+  NIGHT_MODE: '/tmp/night_mode',
+  HAND_DRIVE: '/tmp/hand_drive_mode',
+  CHARGE:     '/tmp/charge_mode',
+  BOX_NAME:   '/etc/box_name',
+});
+
+const KNOWN_DEVICES = [
+  { vendorId: 0x1314, productId: 0x1520 },
+  { vendorId: 0x1314, productId: 0x1521 },
+];
+
+// Maps decodeType byte → { freq, ch }
+const AUDIO_FORMATS = Object.freeze({
+  1: { freq: 44100, ch: 2 },
+  2: { freq: 44100, ch: 2 },
+  3: { freq:  8000, ch: 1 },
+  4: { freq: 48000, ch: 2 },
+  5: { freq: 16000, ch: 1 },
+  6: { freq: 24000, ch: 1 },
+  7: { freq: 16000, ch: 2 },
+});
+
+let W, H;
+
+function getAvailableSize() {
+  if (CONFIG.customResolution) {
+    return {
+      w: Math.floor(CONFIG.width  / 2) * 2,
+      h: Math.floor(CONFIG.height / 2) * 2,
+    };
+  }
+  const uiEl = document.getElementById('ui');
+  const uiH  = uiEl.classList.contains('hidden') ? 0 : uiEl.offsetHeight;
+  return {
+    w: Math.floor(window.innerWidth  / 2) * 2,
+    h: Math.floor((window.innerHeight - uiH) / 2) * 2,
+  };
+}
+
+// ─── Message builders ─────────────────────────────────────────────────────────
+function makeHeader(type, payloadLen) {
+  const b = new Uint8Array(16);
+  const v = new DataView(b.buffer);
+  v.setUint32(0,  MAGIC,           true);
+  v.setUint32(4,  payloadLen,      true);
+  v.setUint32(8,  type,            true);
+  v.setUint32(12, (~type >>> 0),   true); // bitwise NOT type, unsigned
+  return b;
+}
+
+function cat(...parts) {
+  const total = parts.reduce((n, p) => n + (p.byteLength ?? p.length), 0);
+  const out   = new Uint8Array(total);
+  let off = 0;
+  for (const p of parts) {
+    out.set(p instanceof Uint8Array ? p : new Uint8Array(p.buffer ?? p), off);
+    off += p.byteLength ?? p.length;
+  }
+  return out;
+}
+
+function makeCommand(value) {
+  const p = new Uint8Array(4);
+  new DataView(p.buffer).setUint32(0, value, true);
+  return cat(makeHeader(MsgType.Command, 4), p);
+}
+
+function makeHeartbeat() {
+  return makeHeader(MsgType.HeartBeat, 0);
+}
+
+// SendOpen payload: width, height, fps, format, packetMax, iBoxVersion, phoneWorkMode (all UInt32LE)
+function makeOpen(w, h, fps) {
+  const p = new Uint8Array(28);
+  const v = new DataView(p.buffer);
+  v.setUint32(0,  w,     true);
+  v.setUint32(4,  h,     true);
+  v.setUint32(8,  fps,   true);
+  v.setUint32(12, 5,     true); // format = H.264
+  v.setUint32(16, 49152, true); // packetMax
+  v.setUint32(20, 2,     true); // iBoxVersion
+  v.setUint32(24, 2,     true); // phoneWorkMode
+  return cat(makeHeader(MsgType.Open, 28), p);
+}
+
+// SendFile: [nameLen(4LE), name+NUL, contentLen(4LE), content]
+function makeSendFile(path, content) {
+  const name     = new TextEncoder().encode(path + '\0');
+  const nameLen  = new Uint8Array(4); new DataView(nameLen.buffer).setUint32(0, name.length, true);
+  const contLen  = new Uint8Array(4); new DataView(contLen.buffer).setUint32(0, content.byteLength, true);
+  const payLen   = 4 + name.length + 4 + content.byteLength;
+  return cat(makeHeader(MsgType.SendFile, payLen), nameLen, name, contLen, content);
+}
+
+function makeSendNumber(n, path) {
+  const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n, true);
+  return makeSendFile(path, b);
+}
+
+function makeSendBoolean(v, path) { return makeSendNumber(v ? 1 : 0, path); }
+
+function makeSendString(s, path) {
+  return makeSendFile(path, new TextEncoder().encode(s));
+}
+
+// BoxSettings: JSON payload
+function makeBoxSettings(w, h) {
+  const p = new TextEncoder().encode(JSON.stringify({
+    mediaDelay: 300,
+    syncTime:   Date.now(),
+    androidAutoSizeW: w,
+    androidAutoSizeH: h,
+  }));
+  return cat(makeHeader(MsgType.BoxSettings, p.byteLength), p);
+}
+
+// Touch: [action(4LE), x*10000(4LE), y*10000(4LE), flags(4LE)]
+// action: 14=down, 15=move, 16=up
+function makeTouch(x, y, action) {
+  const p = new Uint8Array(16);
+  const v = new DataView(p.buffer);
+  v.setUint32(0,  action, true);
+  v.setUint32(4,  Math.max(0, Math.min(10000, Math.round(10000 * x))), true);
+  v.setUint32(8,  Math.max(0, Math.min(10000, Math.round(10000 * y))), true);
+  v.setUint32(12, 0, true);
+  return cat(makeHeader(MsgType.Touch, 16), p);
+}
+
+// ─── USB layer ────────────────────────────────────────────────────────────────
+const usb = { device: null, inEp: 0, outEp: 0, running: false };
+
+function isKnownDevice(d) {
+  return KNOWN_DEVICES.some(k => k.vendorId === d.vendorId && k.productId === d.productId);
+}
+
+async function claimDevice(device) {
+  usb.device = device;
+  await device.open();
+  // Skip selectConfiguration if WinUSB (Windows) already selected it — calling
+  // it again would reset the device and trigger a reconnect loop.
+  if (device.configuration === null) {
+    await device.selectConfiguration(1);
+  }
+  const iface = device.configuration.interfaces[0];
+  await device.claimInterface(iface.interfaceNumber);
+
+  for (const ep of iface.alternate.endpoints) {
+    if (ep.direction === 'in')  usb.inEp  = ep.endpointNumber;
+    if (ep.direction === 'out') usb.outEp = ep.endpointNumber;
+  }
+}
+
+async function usbSend(data) {
+  if (!usb.device?.opened) return;
+  try { await usb.device.transferOut(usb.outEp, data); }
+  catch (e) { console.warn('USB send error:', e); }
+}
+
+async function usbRead(n) {
+  const res = await usb.device.transferIn(usb.inEp, n);
+  if (res.status !== 'ok') throw new Error(`USB read status: ${res.status}`);
+  return res.data; // DataView
+}
+
+async function autoConnect(device) {
+  if (usb.running) return;
+  setOverlay('connecting', 'Dongle detected – connecting…');
+  setStatus('Dongle detected…');
+  try {
+    await claimDevice(device);
+    ({ w: W, h: H } = getAvailableSize());
+    canvas.width  = W;
+    canvas.height = H;
+    if (CONFIG.customResolution && !CONFIG.stretchToFill) {
+      canvas.classList.remove('fill');
+      canvas.classList.add('letterbox');
+    } else {
+      canvas.classList.remove('letterbox');
+      canvas.classList.add('fill');
+    }
+    initDecoder();
+    await startSession();
+    setOverlay('connecting', 'Waiting for iPhone…');
+    setStatus('Waiting for iPhone…');
+  } catch (e) {
+    console.error('Connect failed:', e);
+    usb.device  = null;
+    usb.running = false;
+    const m = e.message ?? '';
+    if (m.includes('Unable to claim') || m.includes('Access denied') || m.includes('protected')) {
+      setStatus('Windows: install WinUSB driver via Zadig – see README.');
+      setOverlay('connecting', 'Driver missing – install WinUSB via Zadig, then replug.');
+    } else {
+      setStatus('Connect failed – waiting for reconnect…');
+      setOverlay('connecting', 'Connect failed – waiting for reconnect…');
+    }
+    // Stay in connecting state — the dongle will replug and we retry automatically.
+  }
+}
+
+// Fire when a known device connects (covers replug and boot-cycle reconnects)
+navigator.usb.addEventListener('connect', event => {
+  if (isKnownDevice(event.device)) autoConnect(event.device);
+});
+
+// On page load, auto-connect if we already have permission for a known device
+navigator.usb.getDevices().then(devices => {
+  const known = devices.find(isKnownDevice);
+  if (known) autoConnect(known);
+});
+
+navigator.usb.addEventListener('disconnect', event => {
+  if (event.device !== usb.device) return;
+  usb.running = false;
+  usb.device  = null;
+  plugged     = false;
+  setStatus('Dongle disconnected – waiting for reconnect…');
+  setButtonsEnabled(false);
+  setOverlay('connecting', 'Dongle disconnected – reconnecting…');
+});
+
+// ─── Session init ─────────────────────────────────────────────────────────────
+async function startSession() {
+  const initMsgs = [
+    usbSend(makeSendNumber(160,                              FileAddr.DPI)),
+    usbSend(makeOpen(W, H, CONFIG.fps)),
+    usbSend(makeSendBoolean(CONFIG.nightMode,                FileAddr.NIGHT_MODE)),
+    usbSend(makeSendNumber(CONFIG.leftHandDrive ? 0 : 1,    FileAddr.HAND_DRIVE)),
+    usbSend(makeSendBoolean(true,                           FileAddr.CHARGE)),
+    usbSend(makeSendString('nodePlay',                      FileAddr.BOX_NAME)),
+    usbSend(makeBoxSettings(W, H)),
+    usbSend(makeCommand(Cmd.wifiEnable)),
+    usbSend(makeCommand(Cmd.mic)),
+    usbSend(makeCommand(Cmd.audioTransferOff)),
+  ];
+  if (CONFIG.wifiType === '5ghz') initMsgs.push(usbSend(makeCommand(Cmd.wifi5g)));
+  await Promise.all(initMsgs);
+
+  setTimeout(() => usbSend(makeCommand(Cmd.wifiConnect)), 1000);
+  setInterval(() => usbSend(makeHeartbeat()), 2000);
+
+  setTimeout(() => {
+    if (!plugged) {
+      setStatus('No phone detected – requesting wifi pair…');
+      usbSend(makeCommand(Cmd.wifiPair));
+    }
+  }, CONFIG.pairTimeoutSecs * 1000);
+
+  usb.running = true;
+  readLoop();
+}
+
+// ─── Read loop ────────────────────────────────────────────────────────────────
+let errorCount = 0;
+const MAX_ERRORS = 5;
+
+async function readLoop() {
+  while (usb.running) {
+    try {
+      const hdrDv  = await usbRead(HEADER_SIZE);
+      const header = parseHeader(hdrDv);
+      if (!header) { errorCount++; if (errorCount >= MAX_ERRORS) break; continue; }
+      errorCount = 0;
+
+      let payload = null;
+      if (header.len > 0) payload = await usbRead(header.len);
+
+      handleMessage(header.type, payload);
+    } catch (e) {
+      console.error('Read loop error:', e);
+      if (++errorCount >= MAX_ERRORS) { setStatus('USB error – reconnect required.'); break; }
+    }
+  }
+}
+
+function parseHeader(dv) {
+  if (dv.byteLength < 16) return null;
+  if (dv.getUint32(0, true) !== MAGIC) return null;
+  const len  = dv.getUint32(4, true);
+  const type = dv.getUint32(8, true);
+  const chk  = dv.getUint32(12, true);
+  if (chk !== (~type >>> 0)) { console.warn('bad header typecheck'); return null; }
+  return { len, type };
+}
+
+// ─── Message dispatch ─────────────────────────────────────────────────────────
+let plugged = false;
+
+function handleMessage(type, dv) {
+  switch (type) {
+    case MsgType.Plugged:
+      plugged = true;
+      setStatus('iPhone connected');
+      setButtonsEnabled(true);
+      setOverlay('hidden');
+      break;
+    case MsgType.Unplugged:
+      plugged = false;
+      setStatus('iPhone disconnected');
+      setButtonsEnabled(false);
+      setOverlay('connecting', 'iPhone disconnected – waiting…');
+      break;
+    case MsgType.VideoData:
+      if (dv) { setOverlay('hidden'); handleVideo(dv); }
+      break;
+    case MsgType.AudioData:
+      if (dv) handleAudio(dv);
+      break;
+    case MsgType.HeartBeat:
+      usbSend(makeHeartbeat());
+      break;
+    case MsgType.Command:
+      if (dv) console.debug('Dongle command:', dv.getUint32(0, true));
+      break;
+    case MsgType.SoftwareVersion:
+      if (dv) console.info('Dongle SW version:', new TextDecoder().decode(new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength)));
+      break;
+    default:
+      break;
+  }
+}
+
+// ─── H.264 video decoding ─────────────────────────────────────────────────────
+const canvas = document.getElementById('screen');
+const ctx    = canvas.getContext('2d');
+let decoder  = null;
+let pending  = null;
+let videoTs  = 0;
+
+function initDecoder() {
+  if (decoder && decoder.state !== 'closed') {
+    decoder.close();
+  }
+  decoder = new VideoDecoder({
+    output(frame) {
+      if (pending) pending.close();
+      pending = frame;
+      requestAnimationFrame(() => {
+        if (!pending) return;
+        ctx.drawImage(pending, 0, 0, canvas.width, canvas.height);
+        pending.close();
+        pending = null;
+      });
+    },
+    error(e) { console.error('VideoDecoder error:', e); },
+  });
+}
+
+// Scan Annex-B bitstream for a NALU of a given type. Returns the NALU bytes (after start code), or null.
+function findNalu(data, targetType) {
+  for (let i = 0; i < data.length - 3; i++) {
+    let off = -1;
+    if (data[i]===0 && data[i+1]===0 && data[i+2]===0 && data[i+3]===1) off = i + 4;
+    else if (data[i]===0 && data[i+1]===0 && data[i+2]===1) off = i + 3;
+    if (off > 0 && off < data.length && (data[off] & 0x1f) === targetType) {
+      return data.subarray(off);
+    }
+  }
+  return null;
+}
+
+// Extract codec string from SPS NALU (profile, compat byte, level → avc1.PPCCLL)
+function getCodecFromSps(data) {
+  const sps = findNalu(data, 7); // NALU type 7 = SPS
+  if (!sps || sps.length < 4) return null;
+  const h = n => n.toString(16).padStart(2, '0').toUpperCase();
+  return `avc1.${h(sps[1])}${h(sps[2])}${h(sps[3])}`;
+}
+
+// VideoData payload: width(4), height(4), flags(4), length(4), unknown(4), h264data…
+function handleVideo(dv) {
+  const w = dv.getUint32(0, true);
+  const h = dv.getUint32(4, true);
+  const frameData = new Uint8Array(dv.buffer, dv.byteOffset + 20, dv.byteLength - 20);
+
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width  = w;
+    canvas.height = h;
+  }
+
+  if (decoder.state === 'unconfigured') {
+    const codec = getCodecFromSps(frameData);
+    if (codec) {
+      console.info('Configuring decoder:', codec, w, 'x', h);
+      decoder.configure({ codec, codedWidth: w, codedHeight: h, hardwareAcceleration: 'prefer-software' });
+    }
+  }
+  if (decoder.state !== 'configured') return;
+
+  const isKey = findNalu(frameData, 5) !== null; // NALU type 5 = IDR (key frame)
+  try {
+    decoder.decode(new EncodedVideoChunk({
+      type:      isKey ? 'key' : 'delta',
+      data:      frameData,
+      timestamp: videoTs++,
+    }));
+  } catch (e) {
+    console.warn('Decode error:', e);
+  }
+}
+
+// ─── PCM audio playback ───────────────────────────────────────────────────────
+let audioCtx      = null;
+let nextAudioTime = 0;
+
+// AudioData payload: decodeType(4), volume(f32), audioType(4), then either:
+//   1 byte  → command, 4 bytes → volume adjustment, >4 bytes → raw PCM Int16
+function handleAudio(dv) {
+  if (!CONFIG.audioEnabled) return;
+  const decType = dv.getUint32(0, true);
+  const amount  = dv.byteLength - 12;
+  if (amount <= 4) return; // command or volume message, no samples
+
+  const fmt = AUDIO_FORMATS[decType];
+  if (!fmt) return;
+
+  if (!audioCtx) {
+    audioCtx = new AudioContext();
+    nextAudioTime = audioCtx.currentTime + 0.05;
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  const pcm    = new Int16Array(dv.buffer, dv.byteOffset + 12, Math.floor(amount / 2));
+  const frames = Math.floor(pcm.length / fmt.ch);
+  if (frames === 0) return;
+
+  const buf = audioCtx.createBuffer(fmt.ch, frames, fmt.freq);
+  for (let c = 0; c < fmt.ch; c++) {
+    const chan = buf.getChannelData(c);
+    for (let i = 0; i < frames; i++) chan[i] = pcm[i * fmt.ch + c] / 32768;
+  }
+
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  src.connect(audioCtx.destination);
+
+  // Schedule gaplessly: start at max(now + 20ms latency, previous end time)
+  const startAt   = Math.max(audioCtx.currentTime + 0.02, nextAudioTime);
+  src.start(startAt);
+  nextAudioTime = startAt + buf.duration;
+}
+
+// ─── Touch / pointer input ────────────────────────────────────────────────────
+function canvasCoords(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) / r.width,
+    y: (e.clientY - r.top)  / r.height,
+  };
+}
+
+canvas.addEventListener('pointerdown', e => {
+  if (audioCtx?.state === 'suspended') audioCtx.resume();
+  const { x, y } = canvasCoords(e);
+  usbSend(makeTouch(x, y, 14)); // 14 = down
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', e => {
+  if (!e.buttons) return;
+  const { x, y } = canvasCoords(e);
+  usbSend(makeTouch(x, y, 15)); // 15 = move
+});
+canvas.addEventListener('pointerup', e => {
+  const { x, y } = canvasCoords(e);
+  usbSend(makeTouch(x, y, 16)); // 16 = up
+});
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+// ─── UI helpers ───────────────────────────────────────────────────────────────
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+function setButtonsEnabled(on) {
+  for (const id of ['homeBtn', 'siriBtn', 'prevBtn', 'playBtn', 'nextBtn']) {
+    document.getElementById(id).disabled = !on;
+  }
+}
+
+// overlay states: 'idle' (big button), 'connecting' (spinner), 'hidden'
+function setOverlay(state, msg) {
+  const overlay  = document.getElementById('overlay');
+  const phone    = overlay.querySelector('.car-icon');
+  const bigBtn   = document.getElementById('connectBigBtn');
+  const hint     = document.getElementById('overlay-hint');
+  const spinner  = document.getElementById('overlay-spinner');
+
+  if (state === 'hidden') {
+    overlay.classList.add('hidden');
+    return;
+  }
+  overlay.classList.remove('hidden');
+  const connecting = state === 'connecting';
+  phone.style.display   = connecting ? 'none' : '';
+  bigBtn.style.display  = connecting ? 'none' : '';
+  hint.style.display    = connecting ? 'none' : '';
+  spinner.classList.toggle('visible', connecting);
+  if (msg) document.getElementById('spinnerStatus').textContent = msg;
+}
+
+// ─── Button handlers ──────────────────────────────────────────────────────────
+async function doConnect() {
+  try {
+    // requestDevice requires a user gesture — only needed the first time
+    const device = await navigator.usb.requestDevice({ filters: KNOWN_DEVICES });
+    await autoConnect(device);
+  } catch (e) {
+    if (e.name !== 'NotFoundError') { // user cancelled picker — stay on idle
+      setStatus('Error: ' + e.message);
+    }
+    setOverlay('idle');
+  }
+}
+
+document.getElementById('connectBigBtn').addEventListener('click', doConnect);
+
+document.getElementById('homeBtn').addEventListener('click', () => usbSend(makeCommand(Cmd.home)));
+document.getElementById('siriBtn').addEventListener('click', () => usbSend(makeCommand(Cmd.siri)));
+document.getElementById('prevBtn').addEventListener('click', () => usbSend(makeCommand(Cmd.prev)));
+document.getElementById('playBtn').addEventListener('click', () => usbSend(makeCommand(Cmd.playOrPause)));
+document.getElementById('nextBtn').addEventListener('click', () => usbSend(makeCommand(Cmd.next)));
+
+const barTab = document.getElementById('bar-tab');
+
+document.getElementById('hideBtn').addEventListener('click', () => {
+  document.getElementById('ui').classList.add('hidden');
+  if (CONFIG.showMenuBar) barTab.classList.add('visible');
+});
+barTab.addEventListener('click', () => {
+  document.getElementById('ui').classList.remove('hidden');
+  barTab.classList.remove('visible');
+});
+canvas.addEventListener('dblclick', () => {
+  document.getElementById('ui').classList.remove('hidden');
+  barTab.classList.remove('visible');
+});
+
+// ─── Startup state ────────────────────────────────────────────────────────────
+document.getElementById('ui').dataset.size = CONFIG.buttonSize;
+if (!CONFIG.showMenuBar) document.getElementById('ui').classList.add('hidden');
+</script>
+</body>
+</html>
