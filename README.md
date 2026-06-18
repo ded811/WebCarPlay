@@ -2,6 +2,14 @@
 
 A pure browser-based Apple CarPlay client. No Node.js, no build tools, no dependencies, just a single HTML file you open in Chrome. It uses [WebUSB](https://developer.mozilla.org/en-US/docs/Web/API/WebUSB_API) to talk to a USB CarPlay dongle and [WebCodecs](https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API) to decode the H.264 video stream.
 
+<p align="center">
+  <a href="https://ded811.github.io/webcarplay/carplay.html">
+    <img src="https://img.shields.io/badge/▶%20Open%20WebCarPlay-007AFF?style=for-the-badge&logoColor=white" alt="Open WebCarPlay" height="44">
+  </a>
+  <br>
+  <sub>Requires Chrome and a USB CarPlay dongle</sub>
+</p>
+
 ---
 
 ## What adapter do you need?
