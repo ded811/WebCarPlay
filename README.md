@@ -123,19 +123,9 @@ After that, Chrome's device picker should show the dongle.
 
 ---
 
-## Adding support for other dongles
+## Using other dongles
 
-If your dongle is not auto-detected, find its USB Vendor ID and Product ID (Device Manager on Windows, `lsusb` on Linux, System Information on macOS) and add an entry to `KNOWN_DEVICES` near the top of the script:
-
-```javascript
-const KNOWN_DEVICES = [
-  { vendorId: 0x1314, productId: 0x1520 },
-  { vendorId: 0x1314, productId: 0x1521 },
-  { vendorId: 0xXXXX, productId: 0xXXXX }, // your dongle
-];
-```
-
-The underlying protocol is shared across the Carlinkit/AutoKit family, so it should work as long as your dongle uses the same protocol.
+The device picker shows all connected USB devices, so any Carlinkit/AutoKit-compatible dongle should appear. Look for something named **Auto Box**, **AutoKit**, **Carlinkit**, or similar. Pick it once and WebCarPlay remembers it for future sessions. The underlying protocol is shared across the whole family, so it should work as long as your dongle uses the same protocol.
 
 ---
 

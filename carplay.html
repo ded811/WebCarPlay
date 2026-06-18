@@ -448,8 +448,22 @@ function makeTouch(x, y, action) {
 // ─── USB layer ────────────────────────────────────────────────────────────────
 const usb = { device: null, inEp: 0, outEp: 0, running: false };
 
+function getSavedDevices() {
+  try { return JSON.parse(localStorage.getItem('webcarplay_devices') || '[]'); } catch { return []; }
+}
+
+function saveDevice(d) {
+  const saved = getSavedDevices();
+  if (!saved.some(k => k.vendorId === d.vendorId && k.productId === d.productId)) {
+    saved.push({ vendorId: d.vendorId, productId: d.productId });
+    localStorage.setItem('webcarplay_devices', JSON.stringify(saved));
+  }
+}
+
 function isKnownDevice(d) {
-  return KNOWN_DEVICES.some(k => k.vendorId === d.vendorId && k.productId === d.productId);
+  return [...KNOWN_DEVICES, ...getSavedDevices()].some(
+    k => k.vendorId === d.vendorId && k.productId === d.productId
+  );
 }
 
 async function claimDevice(device) {
@@ -486,6 +500,7 @@ async function autoConnect(device) {
   setOverlay('connecting', 'Dongle detected – connecting…');
   setStatus('Dongle detected…');
   try {
+    saveDevice(device);
     await claimDevice(device);
     ({ w: W, h: H } = getAvailableSize());
     canvas.width  = W;
@@ -819,7 +834,7 @@ function setOverlay(state, msg) {
 async function doConnect() {
   try {
     // requestDevice requires a user gesture — only needed the first time
-    const device = await navigator.usb.requestDevice({ filters: KNOWN_DEVICES });
+    const device = await navigator.usb.requestDevice({ filters: [] });
     await autoConnect(device);
   } catch (e) {
     if (e.name !== 'NotFoundError') { // user cancelled picker — stay on idle
