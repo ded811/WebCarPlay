@@ -26,29 +26,28 @@ These dongles support two connection modes, and this client handles both:
 ## Requirements
 
 - **Chrome 94+** (WebUSB + WebCodecs). Other Chromium-based browsers may work.
-- The page must be served over **localhost or HTTPS** on all platforms — WebUSB does not work from a plain `file://` URL. This applies to Linux and macOS too, not just Windows.
-- **Linux / macOS**: no driver setup needed, works out of the box.
-- **Windows**: requires extra driver setup — see the [Windows section](#windows) below.
+- **Linux / macOS**: just open `carplay.html` directly in Chrome — no server needed, no driver setup.
+- **Windows**: requires a local server (`python3 -m http.server 8080`) and driver setup — see the [Windows section](#windows) below.
 
 ---
 
 ## Getting started
 
-1. Serve the file over localhost. The simplest way on all platforms:
+1. Open `carplay.html` directly in Chrome. On Linux and macOS this is all you need — just double-click the file or drag it into Chrome.
+
+   On Windows, open it via a local server instead:
 
    ```bash
    python3 -m http.server 8080
    ```
 
-   Or use VS Code's Live Server extension.
+   Then navigate to `http://localhost:8080/carplay.html`.
 
-2. Open `http://localhost:8080/carplay.html` in Chrome.
+2. Plug in your CarPlay dongle.
 
-3. Plug in your CarPlay dongle.
+3. Click **Connect CarPlay**. Chrome will show a device picker — select the dongle. After the first time, the dongle is remembered and will auto-connect on subsequent visits.
 
-4. Click **Connect CarPlay**. Chrome will show a device picker — select the dongle. After the first time, the dongle is remembered and will auto-connect on subsequent visits.
-
-5. Connect your iPhone:
+4. Connect your iPhone:
    - **Wired**: plug your iPhone into the dongle via USB.
    - **Wireless**: the dongle broadcasts a WiFi hotspot; your iPhone will find it automatically if it has previously paired with the dongle.
 
