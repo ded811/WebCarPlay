@@ -10,7 +10,7 @@ You need a **USB CarPlay relay dongle**, the kind that sits between your iPhone 
 
 - Carlinkit CPC200-CCPM
 - Carlinkit CPC200-CCPA
-- Any dongle with USB VID `0x1314` and PID `0x1520` or `0x1521`
+- Most other Carlinkit / AutoKit USB dongles
 
 These dongles support two connection modes, and this client handles both:
 
@@ -103,7 +103,7 @@ The bottom bar has Home, Siri, and media controls.
 
 **To restore it:** click that pull-tab, or double-click anywhere on the CarPlay video.
 
-**To hide it permanently** (e.g. for a dedicated car display where you always use CarPlay's own UI): set `showMenuBar: false` in CONFIG. The bar will never appear and no pull-tab will be shown. You can still interact with CarPlay fully through touch, just double-click the screen if you ever need the bar back temporarily.
+**To hide it permanently** (e.g. for a dedicated car display): set `showMenuBar: false` in CONFIG. The bar and pull-tab will never appear. CarPlay's own touch UI handles everything.
 
 ---
 
@@ -112,8 +112,8 @@ The bottom bar has Home, Siri, and media controls.
 Chrome's WebUSB on Windows requires the **WinUSB** driver to be installed for your dongle. Use [Zadig](https://zadig.akeo.ie/):
 
 1. Plug in the dongle and open Zadig
-2. **Options -> List All Devices**
-3. Find the Carlinkit dongle (VID `1314`, PID `1520` or `1521`)
+2. **Options > List All Devices**
+3. Find your dongle in the list (look for Auto Box, Carlinkit, or an unknown USB device)
 4. Select **WinUSB** in the driver dropdown, not libusb-win32 or LibusbK
 5. Click **Install Driver**
 
