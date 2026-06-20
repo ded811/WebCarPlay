@@ -561,7 +561,7 @@ async function startSession() {
     usbSend(makeSendBoolean(CONFIG.nightMode,                FileAddr.NIGHT_MODE)),
     usbSend(makeSendNumber(CONFIG.leftHandDrive ? 0 : 1,    FileAddr.HAND_DRIVE)),
     usbSend(makeSendBoolean(true,                           FileAddr.CHARGE)),
-    usbSend(makeSendString('nodePlay',                      FileAddr.BOX_NAME)),
+    usbSend(makeSendString('WebCarPlay',                    FileAddr.BOX_NAME)),
     usbSend(makeBoxSettings(W, H)),
     usbSend(makeCommand(Cmd.wifiEnable)),
     usbSend(makeCommand(Cmd.mic)),
