@@ -10,6 +10,10 @@ A pure browser-based Apple CarPlay client. No Node.js, no build tools, no depend
   <sub>Requires Chrome and a USB CarPlay dongle</sub>
 </p>
 
+<p align="center">
+  <img src="image.png" alt="WebCarPlay running in Chrome" width="720">
+</p>
+
 ---
 
 ## What adapter do you need?
@@ -34,8 +38,9 @@ These dongles support two connection modes, and this client handles both:
 ## Requirements
 
 - **Chrome 94+** (WebUSB + WebCodecs). Other Chromium-based browsers may work.
-- **Linux / macOS / Windows**: just open `carplay.html` directly in Chrome, no server needed.
-- **Windows only**: requires a driver, see the [Windows section](#windows) below.
+- **Linux** — works great. Just open `carplay.html` directly in Chrome, no setup needed.
+- **macOS** — works great. Same as Linux, just double-click and go.
+- **Windows** — works for most people after a one-time driver install, but some dongles have a known compatibility issue. See the [Windows section](#windows) for details.
 
 ---
 
