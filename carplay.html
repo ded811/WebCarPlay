@@ -548,6 +548,8 @@ navigator.usb.addEventListener('disconnect', event => {
   usb.running = false;
   usb.device  = null;
   plugged     = false;
+  if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+  if (pairTimer)      { clearTimeout(pairTimer);       pairTimer      = null; }
   setStatus('Dongle disconnected – waiting for reconnect…');
   setButtonsEnabled(false);
   setOverlay('connecting', 'Dongle disconnected – reconnecting…');
@@ -571,9 +573,12 @@ async function startSession() {
   await Promise.all(initMsgs);
 
   setTimeout(() => usbSend(makeCommand(Cmd.wifiConnect)), 1000);
-  setInterval(() => usbSend(makeHeartbeat()), 2000);
 
-  setTimeout(() => {
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(() => usbSend(makeHeartbeat()), 2000);
+
+  if (pairTimer) clearTimeout(pairTimer);
+  pairTimer = setTimeout(() => {
     if (!plugged) {
       setStatus('No phone detected – requesting wifi pair…');
       usbSend(makeCommand(Cmd.wifiPair));
@@ -585,7 +590,9 @@ async function startSession() {
 }
 
 // ─── Read loop ────────────────────────────────────────────────────────────────
-let errorCount = 0;
+let heartbeatTimer = null;
+let pairTimer      = null;
+let errorCount     = 0;
 const MAX_ERRORS = 5;
 
 async function readLoop() {
